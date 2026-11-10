@@ -2,9 +2,10 @@ library(haven)
 library(dplyr)
 library(flextable)
 
+#Load the data
 df <- read_dta("regdata0.dta")
 
-
+#Select variables for table 1
 table1_vars <- c(
 "iwm94", "hischshr1520f", "hischshr1520m", 
 "i94", "vshr_islam1994", "partycount",
@@ -44,6 +45,7 @@ table1_final <- data.frame(
     Difference = character()
 )
 
+# Loop through each variable and calculate means, standard deviations, and differences
 for (variable in names(table1_labels)) {
 
     x <- df_table1[[variable]]
@@ -93,6 +95,7 @@ table1_final <- rbind(
 
 dir.create("results", showWarnings = FALSE)
 
+#Formatting the table
 ft <- flextable(table1_final)
 
 ft <- add_header_lines(
@@ -123,6 +126,7 @@ ft <- add_footer_lines(
 
 ft <- autofit(ft)
 
+#Export the results
 save_as_docx(
     ft,
     path = "results/table1_formatted.docx"
