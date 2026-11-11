@@ -1,9 +1,11 @@
+library(tidyverse)
 library(haven)
-library(dplyr)
 library(fixest)
 library(flextable)
 
+#Load data
 df <- read_dta("regdata0.dta")
+dir.create("results", showWarnings = FALSE)
 
 #Each outcome becomes one column in Table 7
 #The first four are high scholl completion shares
@@ -81,7 +83,7 @@ for (outcome in outcomes) {
     rd_vars <- c(outcome, "i94", "iwm94", "vi1", "vi1_i",
                  controls, province_vars, "pcode")
     rd_sample <- df[complete.cases(df[, rd_vars]), ]
-   
+
     bandwidth_options <- c(
         Optimal = h,
         Half = h / 2,
@@ -97,7 +99,7 @@ for (outcome in outcomes) {
         sample <- rd_sample |>
             filter(abs(iwm94) < bw)
 
-        #vi1 is the election margin. 
+        #vi1 is the election margin.
         #vi1_i lets the slope differ on each side of zero.
         formula_rd <- as.formula(
             paste(
@@ -118,6 +120,7 @@ for (outcome in outcomes) {
         table7_panelB[[model_name]] <- model
     }
 }
+
 get_stars <- function(p) {
     if (p < 0.01) "***"
     else if (p < 0.05) "**"
@@ -138,7 +141,7 @@ format_result <- function(model) {
 }
 
 table7_final <- data.frame(
-        Statistic = c(
+    Statistic = c(
         "Panel A: Global OLS",
         "Outcome mean",
         "Model 1. Unconditional estimates",
@@ -165,7 +168,7 @@ table7_final <- data.frame(
         "Bandwidth",
         "Observations"
     ),
-        stringsAsFactors = FALSE
+    stringsAsFactors = FALSE
 )
 
 outcome_labels <- c(
@@ -181,7 +184,6 @@ for (i in seq_along(outcomes)) {
 
     outcome <- outcomes[i]
 
-  
     model_uncond <- table7_panelA[[
         paste0(outcome, "_unconditional")
     ]]
@@ -190,7 +192,6 @@ for (i in seq_along(outcomes)) {
         paste0(outcome, "_conditional")
     ]]
 
-    
     model_opt <- table7_panelB[[
         paste(outcome, "Optimal", sep = "_")
     ]]
@@ -208,45 +209,43 @@ for (i in seq_along(outcomes)) {
     outcome_mean <- mean(fitted(model_cond))
 
     table7_final[[outcome_labels[i]]] <- c(
-        "",                              
+        "",
         sprintf("%.3f", outcome_mean),
-        "",                              
+        "",
         format_result(model_uncond),
-        "",                              
+        "",
         format_result(model_cond),
         "1.00",
         as.character(nobs(model_cond)),
-        "",                              
+        "",
 
-        "",                              
+        "",
         sprintf("%.3f", mean(fitted(model_opt))),
-        "",                             
+        "",
         format_result(model_opt),
         sprintf("%.3f", h),
         as.character(nobs(model_opt)),
-        "",                              
+        "",
 
-        "",                              
+        "",
         format_result(model_half),
-        sprintf("%.4f", h / 2),
+        sprintf("%.3f", h / 2),
         as.character(nobs(model_half)),
-        "",                              
+        "",
 
-        "",                              
+        "",
         format_result(model_double),
         sprintf("%.3f", h * 2),
         as.character(nobs(model_double))
     )
 }
 
-dir.create("results", showWarnings = FALSE)
-
 #Formatting the table
 ft <- flextable(table7_final)
 
 ft <- add_header_lines(
     ft,
-    values = "RD TREATMENT EFFECTS OF ISLAMIC RULE ON EDUCATION IN 2011"
+    values = "TABLE VII — RD TREATMENT EFFECTS OF ISLAMIC RULE ON EDUCATION IN 2011"
 )
 
 ft <- theme_booktabs(ft)

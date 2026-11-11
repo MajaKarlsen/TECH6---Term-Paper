@@ -1,5 +1,5 @@
+library(tidyverse)
 library(haven)
-library(dplyr)
 library(fixest)
 library(flextable)
 
@@ -8,7 +8,7 @@ df <- read_dta("regdata0.dta")
 dir.create("results", showWarnings = FALSE)
 
 table3_vars <- c(
-    "hischshr1520f",
+    "hischshr1520f", "hischshr1520m",
     "i94", "iwm94",
     "vshr_islam1994", "partycount",
     "shhs", "lpop1994", "ageshr19",
@@ -24,14 +24,11 @@ df_table3 <- df[
 
 bandwidths <- c(1, 0.5, 0.25, 0.1, 0.05)
 
-controls <- paste(
-    c(
-        "vshr_islam1994", "partycount", "shhs",
-        "lpop1994", "ageshr19", "ageshr60",
-        "sexr", "merkezi", "merkezp",
-        "subbuyuk", "buyuk"
-    ),
-    collapse = " + "
+controls <- c(
+    "vshr_islam1994", "partycount", "shhs",
+    "lpop1994", "ageshr19", "ageshr60",
+    "sexr", "merkezi", "merkezp",
+    "subbuyuk", "buyuk"
 )
 
 polynomials <- c(
@@ -50,23 +47,23 @@ for (gender in c("f", "m")) {
 
     outcome <- paste0("hischshr1520", gender)
 
-for (bw in bandwidths) {
+    for (bw in bandwidths) {
 
         #Keep muncipalities where the election margin is within the bandwidth
         sample <- df_table3 |>
             filter(abs(iwm94) < bw)
 
-    #Rescale each power of the election margin and its interaction by bw^k
-    #This is to keep the higher powers from getting very small in narrow windows
-    for (k in 1:4) {
-        sample[[paste0("vi", k)]] <-
-            sample[[paste0("vi", k)]] / bw^k
+        #Rescale each power of the election margin and its interaction by bw^k
+        #This is to keep the higher powers from getting very small in narrow windows
+        for (k in 1:4) {
+            sample[[paste0("vi", k)]] <-
+                sample[[paste0("vi", k)]] / bw^k
 
-        sample[[paste0("vi", k, "_i")]] <-
-            sample[[paste0("vi", k, "_i")]] / bw^k
-    }
+            sample[[paste0("vi", k, "_i")]] <-
+                sample[[paste0("vi", k, "_i")]] / bw^k
+        }
 
-    for (poly in names(polynomials)) {
+        for (poly in names(polynomials)) {
 
             terms <- c(
                 "i94",
@@ -142,8 +139,7 @@ table3_final <- data.frame(
 
 for (bw in bandwidths) {
 
-    column_values <- c("", "", "", "", "", "", "", "",
-                       "", "", "", "", "", "", "")
+    column_values <- rep("", nrow(table3_final))
 
     for (gender in c("f", "m")) {
 
@@ -183,7 +179,7 @@ ft <- add_header_lines(
 ft <- theme_booktabs(ft)
 
 ft <- bold(ft, part = "header")
-ft <- fontsize(ft, size = 9, part = "all")
+ft <- fontsize(ft, size = 8, part = "all")
 
 ft <- bold(
     ft,

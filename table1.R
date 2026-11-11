@@ -1,22 +1,15 @@
 #TABLE 1
 
 library(haven)
+library(dplyr)
 library(flextable)
 
 #Load the data
 df <- read_dta("regdata0.dta")
 
-#Select variables for table 1
-table1_vars <- c(
-"iwm94", "hischshr1520f", "hischshr1520m", 
-"i94", "vshr_islam1994", "partycount",
-"lpop1994", "ageshr19", "ageshr60",
-"sexr", "merkezi", "merkezp",
-"subbuyuk", "buyuk"
-)
+dir.create("results", showWarnings = FALSE)
 
-df_table1 <- df[complete.cases(df[, table1_vars]), ]
-
+#Select variables for table 1 and the labels shown in the table
 table1_labels <- c(
     hischshr1520f = "Share Women aged 15-20 with high school education",
     hischshr1520m = "Share Men aged 15-20 with high school education",
@@ -33,16 +26,21 @@ table1_labels <- c(
     subbuyuk = "Sub-metro center"
 )
 
-table1_final <- data.frame(
-    Variable = character(),
-    All = character(),
-    Islamic = character(),
-    Secular = character(),
-    Difference = character()
-)
+table1_vars <- names(table1_labels)
 
-# Calculate one row of Table 1 each time through the loop
-for (variable in names(table1_labels)) {
+df_table1 <- df[complete.cases(df[, table1_vars]), ]
+
+# Stars follow the published Table I (0.001 / 0.01 / 0.05),
+# not the 1/5/10 % given in the paper's footnote
+get_stars <- function(p) {
+    if (p < 0.001) "***"
+    else if (p < 0.01) "**"
+    else if (p < 0.05) "*"
+    else ""
+}
+
+#Returns one row of Table I (means, s.d. and difference) for one variable
+make_row <- function(variable) {
 
     x <- df_table1[[variable]]
 
@@ -51,36 +49,31 @@ for (variable in names(table1_labels)) {
 
     difference <- mean(islamic) - mean(secular)
 
-# i94 is always 1 in the Islamic group and 0 for the secular
+    # i94 is always 1 in the Islamic group and 0 for the secular
     if (variable == "i94") {
         se <- 0
         stars <- ""
     } else {
-
-        #Using the t-test to get the standard error and p-value for the
-        #difference between the two means
+        #t-test for the difference between the two means
         test <- t.test(islamic, secular, var.equal = TRUE)
 
         se <- test$stderr
         p <- test$p.value
 
-        stars <- if (p < 0.001) "***"
-                 else if (p < 0.01) "**"
-                 else if (p < 0.05) "*"
-                 else ""
+        stars <- get_stars(p)
     }
-
-    table1_final <- rbind(
-        table1_final,
-        data.frame(
-            Variable = table1_labels[[variable]],
-            All = sprintf("%.3f (%.3f)", mean(x), sd(x)),
-            Islamic = sprintf("%.3f (%.3f)", mean(islamic), sd(islamic)),
-            Secular = sprintf("%.3f (%.3f)", mean(secular), sd(secular)),
-            Difference = sprintf("%.3f%s (%.3f)", difference, stars, se)
+   
+    data.frame(
+        Variable = table1_labels[[variable]],
+        All = sprintf("%.3f (%.3f)", mean(x), sd(x)),
+        Islamic = sprintf("%.3f (%.3f)", mean(islamic), sd(islamic)),
+        Secular = sprintf("%.3f (%.3f)", mean(secular), sd(secular)),
+        Difference = sprintf("%.3f%s (%.3f)", difference, stars, se)
         )
-    )
 }
+
+table1_rows <- lapply(names(table1_labels), make_row)
+table1_final <- bind_rows(table1_rows)
 
 table1_final <- rbind(
     table1_final,
@@ -93,9 +86,7 @@ table1_final <- rbind(
     )
 )
 
-dir.create("results", showWarnings = FALSE)
-
-#Formatting the table
+# Format and export
 ft <- flextable(table1_final)
 
 ft <- add_header_lines(
@@ -105,13 +96,19 @@ ft <- add_header_lines(
 
 ft <- theme_booktabs(ft)
 ft <- bold(ft, part = "header")
-ft <- fontsize(ft, size = 9, part = "all")
-
+ft <- fontsize(ft, size = 8, part = "all")
 
 ft <- align(
     ft,
     j = c("All", "Islamic", "Secular", "Difference"),
     align = "center",
+    part = "all"
+)
+
+ft <- align(
+    ft,
+    j = 1,
+    align = "left",
     part = "all"
 )
 
@@ -123,9 +120,11 @@ ft <- add_footer_lines(
     )
 )
 
+ft <- fontsize(ft, size = 8, part = "footer")
+
 ft <- autofit(ft)
 
-#Export the results
+# Export the results
 save_as_docx(
     ft,
     path = "results/table1_formatted.docx"
