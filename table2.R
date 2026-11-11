@@ -1,3 +1,5 @@
+#TABLE 2
+
 library(haven)
 library(dplyr)
 library(fixest)
@@ -18,15 +20,18 @@ table2_vars <- c(
 
 province_vars <- grep("^pd_", names(df), value = TRUE)
 
+#Starting with muncipalities that have data for both women and men all the controls
 df_table2 <- df[complete.cases(df[ , c(table2_vars,province_vars)]),]
 
-
+#Panel A: High school completion for women
+#Column 1 compares two mayor groups
 model_f1 <- feols(
     hischshr1520f ~ i94,
     data = df_table2,
     cluster = ~pcode
 )
 
+#Column 2 adds controls (covariates) and province fixed effects
 model_f2 <- feols(
     hischshr1520f ~ i94 + vshr_islam1994 + partycount + 
         shhs + lpop1994 + ageshr19 + ageshr60 + 
@@ -35,12 +40,15 @@ model_f2 <- feols(
     cluster = ~pcode
 )
 
+#Use the bandwidth printet in the paper
 bandwidth_f <- 0.240
 
 df_rd_f <- df_table2 |>
     filter(abs(iwm94) < bandwidth_f)
 
 
+#vi1 is the election margin. vi1_i lets the slope differ in the 
+#different sides of the cutoff
 model_f3 <- feols(
     hischshr1520f ~ i94 + vi1 + vi1_i,
     data = df_rd_f,
@@ -60,6 +68,7 @@ model_f4 <- feols(
 
 bandwidth_half <- bandwidth_f / 2
 
+#Repeat the model with half the bandwidth
 df_rd_half <- df_table2 |>
     filter(abs(iwm94) < bandwidth_half)
 
@@ -74,6 +83,7 @@ model_f5 <- feols(
     fixef.rm = "none"
 )
 
+#Repeat the model with double the bandwidth
 bandwidth_double <- bandwidth_f * 2
 
 df_rd_double <- df_table2 |>
@@ -90,6 +100,7 @@ model_f6 <- feols(
     fixef.rm = "none"
 )
 
+#Keep the original bandwidth, but fit quadratic curve
 model_f7 <- feols(
     hischshr1520f ~ i94 + vi1 + vi1_i + vi2 + vi2_i +
         vshr_islam1994 + partycount +
@@ -101,6 +112,7 @@ model_f7 <- feols(
     fixef.rm = "none"
 )
 
+#Keep the original bandwidth, but fit cubic curve
 model_f8 <- feols(
     hischshr1520f ~ i94 + vi1 + vi1_i +
         vi2 + vi2_i + vi3 + vi3_i +
@@ -113,6 +125,8 @@ model_f8 <- feols(
     fixef.rm = "none"
 )
 
+#Column 9 switches to school enrollment for ages 15-30,
+#and uses its own bandwidth
 bandwidth_enroll_f <- 0.205
 
 df_enroll_f <- df_table2 |>
@@ -129,6 +143,8 @@ model_f9 <- feols(
     fixef.rm = "none"
 )
 
+#Panel B: Repeat the same nine models for men, 
+#using the men's bandwidth
 model_m1 <- feols(
     hischshr1520m ~ i94,
     data = df_table2,
@@ -237,6 +253,8 @@ model_m9 <- feols(
     fixef.rm = "none"
 )
 
+#Panel C: Stack the women's and men's outcomes in one dataset.
+#Male is 0 for women's outcomes, and 1 for men's outcomes. 
 df_gender <- bind_rows(
     df_table2 |>
         mutate(
@@ -418,6 +436,8 @@ male_models <- list(
     model_m7, model_m8, model_m9
 )
 
+#Gets the outcome mean for each column using the muncipalities in that model
+#In these OLS models, the average fitted value equals the average observed outcome.
 female_means <- sapply(female_models, function(model) mean(fitted(model)))
 male_means   <- sapply(male_models, function(model) mean(fitted(model)))
 
@@ -433,6 +453,8 @@ panel_c_models <- list(
     model_c7, model_c8, model_c9
 )
 
+#i94:male gives the men's Islamic mayor coefficient minus the women's.
+#Its p-value tests whether the two coefficients are equal
 gender_p <- sapply(
     panel_c_models,
     function(model) coeftable(model)["i94:male", 4]
@@ -475,19 +497,19 @@ table2_final <- data.frame(
     Statistic = c(
         "Panel A: Women",
         "Outcome mean",
-        "Islamic mayor (SE)",
+        "Islamic mayor in 1994",
         "Bandwidth",
         "R²",
         "Observations",
         "",
         "Panel B: Men",
         "Outcome mean",
-        "Islamic mayor (SE)",
+        "Islamic mayor in 1994",
         "Bandwidth",
         "R²",
         "Observations",
         "",
-        "Panel C: Gender difference",
+        "Panel C: Test of coefficient equality between women and men",
         "p-value"
     ),
     stringsAsFactors = FALSE
@@ -516,12 +538,7 @@ for (i in 1:9) {
 
 dir.create("results", showWarnings = FALSE)
 
-write.csv(
-    table2_final,
-    "results/table2.csv",
-    row.names = FALSE
-)
-
+#Formatting the table
 ft <- flextable(table2_final)
 
 ft <- add_header_lines(
@@ -561,18 +578,20 @@ ft <- align(
 ft <- add_footer_lines(
     ft,
     values = paste(
-        "Columns 1–2 use OLS and columns 3–9 use RD. Column 9 measures school enrollment.",
-        "Standard errors are clustered by province and shown in parentheses.",
-        "RD bandwidths use the rounded values from the paper.",
-        "Panel C tests whether the effects differ by gender using a stacked regression. The paper uses Stata's suest test.",
         "* p < 0.10, ** p < 0.05, *** p < 0.01."
     )
 )
 
 ft <- autofit(ft)
 
+#Export the results
 save_as_docx(
     ft,
     path = "results/table2_formatted.docx"
 )
 
+write.csv(
+    table2_final,
+    "results/table2.csv",
+    row.names = FALSE
+)

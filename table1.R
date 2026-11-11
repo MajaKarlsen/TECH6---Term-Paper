@@ -1,3 +1,5 @@
+#TABLE 1
+
 library(haven)
 library(flextable)
 
@@ -16,8 +18,8 @@ table1_vars <- c(
 df_table1 <- df[complete.cases(df[, table1_vars]), ]
 
 table1_labels <- c(
-    hischshr1520f = "Share Women aged 15-20 with High School education",
-    hischshr1520m = "Share Men aged 15-20 with High School education",
+    hischshr1520f = "Share Women aged 15-20 with high school education",
+    hischshr1520m = "Share Men aged 15-20 with high school education",
     i94 = "Islamic mayor in 1994",
     vshr_islam1994 = "Islamic vote share 1994",
     partycount = "Number of parties receiving votes 1994",
@@ -39,7 +41,7 @@ table1_final <- data.frame(
     Difference = character()
 )
 
-# Loop through each variable and calculate means, standard deviations, and differences
+# Calculate one row of Table 1 each time through the loop
 for (variable in names(table1_labels)) {
 
     x <- df_table1[[variable]]
@@ -49,10 +51,14 @@ for (variable in names(table1_labels)) {
 
     difference <- mean(islamic) - mean(secular)
 
+# i94 is always 1 in the Islamic group and 0 for the secular
     if (variable == "i94") {
         se <- 0
         stars <- ""
     } else {
+
+        #Using the t-test to get the standard error and p-value for the
+        #difference between the two means
         test <- t.test(islamic, secular, var.equal = TRUE)
 
         se <- test$stderr
@@ -112,8 +118,6 @@ ft <- align(
 ft <- add_footer_lines(
     ft,
     values = paste(
-        "Columns 1–3 show means with standard deviations in parentheses.",
-        "Column 4 shows the Islamic minus secular mean difference with its standard error in parentheses.",
         "Stars follow the entries displayed in the published table:",
         "* p < 0.05, ** p < 0.01, *** p < 0.001."
     )

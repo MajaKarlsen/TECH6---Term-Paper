@@ -3,6 +3,7 @@ library(dplyr)
 library(fixest)
 library(flextable)
 
+#Load data
 df <- read_dta("regdata0.dta")
 dir.create("results", showWarnings = FALSE)
 
@@ -43,15 +44,20 @@ polynomials <- c(
 
 table3_models <- list()
 
+#Run the models for women (Panel A) and men (Panel B)
+#Each bandwidth is a column and each polynomial order is a row
 for (gender in c("f", "m")) {
 
     outcome <- paste0("hischshr1520", gender)
 
 for (bw in bandwidths) {
 
+        #Keep muncipalities where the election margin is within the bandwidth
         sample <- df_table3 |>
             filter(abs(iwm94) < bw)
 
+    #Rescale each power of the election margin and its interaction by bw^k
+    #This is to keep the higher powers from getting very small in narrow windows
     for (k in 1:4) {
         sample[[paste0("vi", k)]] <-
             sample[[paste0("vi", k)]] / bw^k
@@ -85,6 +91,8 @@ for (bw in bandwidths) {
 
             model_name <- paste(gender, bw, poly, sep = "_")
 
+            #Stop if the regression dropped a variable because of collinearity.
+            #This is so we can check that the full polynomial was fitted.
             stopifnot(is.null(model$collin.var))
             table3_models[[model_name]] <- model
         }
@@ -98,6 +106,7 @@ get_stars <- function(p) {
     else ""
 }
 
+#Each cell shows the i94 estimate with stars and its standrad error in parentheses
 format_result <- function(model) {
 
     result <- coeftable(model)
@@ -113,7 +122,7 @@ format_result <- function(model) {
 table3_final <- data.frame(
     Specification = c(
         "Panel A: Women",
-        "No polynomial",
+        "None",
         "Linear",
         "Quadratic",
         "Cubic",
@@ -121,7 +130,7 @@ table3_final <- data.frame(
         "Observations",
         "",
         "Panel B: Men",
-        "No polynomial",
+        "None",
         "Linear",
         "Quadratic",
         "Cubic",
@@ -163,12 +172,7 @@ for (bw in bandwidths) {
     table3_final[[column_name]] <- column_values
 }
 
-write.csv(
-    table3_final,
-    "results/table3.csv",
-    row.names = FALSE
-)
-
+#Formatting the table
 ft <- flextable(table3_final)
 
 ft <- add_header_lines(
@@ -205,9 +209,6 @@ ft <- align(
 ft <- add_footer_lines(
     ft,
     values = paste(
-        "Standard errors are clustered by province and shown in parentheses.",
-        "RD estimates use the bandwidths printed in the paper.",
-        "Panel C uses a stacked gender-interaction test. The paper uses Stata's suest test.",
         "* p < 0.10, ** p < 0.05, *** p < 0.01."
     )
 )
@@ -216,7 +217,14 @@ ft <- fontsize(ft, size = 8, part = "footer")
 
 ft <- autofit(ft)
 
+#Export the results
 save_as_docx(
     ft,
     path = "results/table3_formatted.docx"
+)
+
+write.csv(
+    table3_final,
+    "results/table3.csv",
+    row.names = FALSE
 )

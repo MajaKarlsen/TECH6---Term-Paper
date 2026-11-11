@@ -5,6 +5,9 @@ library(flextable)
 
 df <- read_dta("regdata0.dta")
 
+#Each outcome becomes one column in Table 7
+#The first four are high scholl completion shares
+#And the last two are unmarried shares
 outcomes <- c(
     "ahischshr15_19f",
     "ahischshr15_19m",
@@ -26,6 +29,8 @@ province_vars <- grep("^pd_", names(df), value = TRUE)
 table7_panelA <- list()
 
 for (outcome in outcomes) {
+    #Choose the muncipalities separately for each outcome
+    #Use the same munsipalities for the models with and without controls
     ols_vars <- c(outcome, "i94", controls, province_vars, "pcode")
     ols_sample <- df[complete.cases(df[, ols_vars]), ]
 
@@ -57,6 +62,7 @@ for (outcome in outcomes) {
         model_conditional
 }
 
+#The bandwidths printet in the paper for each outcome
 optimal_bandwidths <- c(
     ahischshr15_19f = 0.239,
     ahischshr15_19m = 0.199,
@@ -82,6 +88,8 @@ for (outcome in outcomes) {
         Double = h * 2
     )
 
+    #Run the same local linear model three times for this outcome
+    #once at the main bandwidth, once at half and once at double
     for (spec in names(bandwidth_options)) {
 
         bw <- bandwidth_options[[spec]]
@@ -89,6 +97,8 @@ for (outcome in outcomes) {
         sample <- rd_sample |>
             filter(abs(iwm94) < bw)
 
+        #vi1 is the election margin. 
+        #vi1_i lets the slope differ on each side of zero.
         formula_rd <- as.formula(
             paste(
                 outcome, "~ i94 + vi1 + vi1_i +",
@@ -131,35 +141,38 @@ table7_final <- data.frame(
         Statistic = c(
         "Panel A: Global OLS",
         "Outcome mean",
-        "Unconditional OLS",
-        "Conditional OLS",
+        "Model 1. Unconditional estimates",
+        "Islamic mayor in 1994",
+        "Model 2. Conditional estimates",
+        "Islamic mayor in 1994",
         "Bandwidth",
-        "R² (conditional)",
         "Observations",
         "",
-        "Panel B: Local linear RD",
+        "Panel B: Conditional local linear RD",
         "Outcome mean",
-        "Optimal bandwidth",
-        "Islamic mayor (optimal)",
-        "R² (optimal)",
-        "Observations (optimal)",
+        "Model 1. Optimal bandwidth",
+        "Islamic mayor in 1994",
+        "Bandwidth",
+        "Observations",
         "",
-        "Half bandwidth",
-        "Islamic mayor (half)",
-        "Observations (half)",
+        "Model 2. Half bandwidth",
+        "Islamic mayor in 1994",
+        "Bandwidth",
+        "Observations",
         "",
-        "Double bandwidth",
-        "Islamic mayor (double)",
-        "Observations (double)"
+        "Model 3. Double bandwidth",
+        "Islamic mayor in 1994",
+        "Bandwidth",
+        "Observations"
     ),
-    stringsAsFactors = FALSE
+        stringsAsFactors = FALSE
 )
 
 outcome_labels <- c(
-    "Women HS 15-19",
-    "Men HS 15-19",
-    "Women HS 15-29",
-    "Men HS 15-29",
+    "Women high school 15-19",
+    "Men high school 15-19",
+    "Women high school 15-29",
+    "Men high school 15-29",
     "Women unmarried 15-19",
     "Men unmarried 15-19"
 )
@@ -195,39 +208,40 @@ for (i in seq_along(outcomes)) {
     outcome_mean <- mean(fitted(model_cond))
 
     table7_final[[outcome_labels[i]]] <- c(
-        "",
+        "",                              
         sprintf("%.3f", outcome_mean),
+        "",                              
         format_result(model_uncond),
+        "",                              
         format_result(model_cond),
         "1.00",
-        sprintf("%.3f", as.numeric(fitstat(model_cond, "r2")$r2)),
         as.character(nobs(model_cond)),
-        "",
-        "",
+        "",                              
+
+        "",                              
         sprintf("%.3f", mean(fitted(model_opt))),
-        sprintf("%.3f", h),
+        "",                             
         format_result(model_opt),
-        sprintf("%.3f", as.numeric(fitstat(model_opt, "r2")$r2)),
+        sprintf("%.3f", h),
         as.character(nobs(model_opt)),
-        "",
-        sprintf("%.4f", h / 2),
+        "",                              
+
+        "",                              
         format_result(model_half),
+        sprintf("%.4f", h / 2),
         as.character(nobs(model_half)),
-        "",
-        sprintf("%.3f", h * 2),
+        "",                              
+
+        "",                              
         format_result(model_double),
+        sprintf("%.3f", h * 2),
         as.character(nobs(model_double))
     )
 }
 
 dir.create("results", showWarnings = FALSE)
 
-write.csv(
-    table7_final,
-    "results/table7.csv",
-    row.names = FALSE
-)
-
+#Formatting the table
 ft <- flextable(table7_final)
 
 ft <- add_header_lines(
@@ -243,7 +257,7 @@ ft <- fontsize(ft, size = 8, part = "all")
 
 ft <- bold(
     ft,
-    i = c(1, 9),
+    i = c(1, 10),
     bold = TRUE,
     part = "body"
 )
@@ -265,9 +279,6 @@ ft <- align(
 ft <- add_footer_lines(
     ft,
     values = paste(
-        "Conditional models include municipal controls and province fixed effects.",
-        "Standard errors are clustered by province and shown in parentheses.",
-        "RD estimates use the rounded bandwidths reported in the paper and half and double those values.",
         "* p < 0.10, ** p < 0.05, *** p < 0.01."
     )
 )
@@ -276,7 +287,14 @@ ft <- fontsize(ft, size = 8, part = "footer")
 
 ft <- autofit(ft)
 
+#Export the results
 save_as_docx(
     ft,
     path = "results/table7_formatted.docx"
+)
+
+write.csv(
+    table7_final,
+    "results/table7.csv",
+    row.names = FALSE
 )
