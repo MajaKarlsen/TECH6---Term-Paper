@@ -4,9 +4,10 @@ library(fixest)
 library(flextable)
 
 df <- read_dta("regdata0.dta")
+dir.create("results", showWarnings = FALSE)
 
 table3_vars <- c(
-    "hischshr1520f", "hischshr1520m",
+    "hischshr1520f",
     "i94", "iwm94",
     "vshr_islam1994", "partycount",
     "shhs", "lpop1994", "ageshr19",
@@ -21,9 +22,6 @@ df_table3 <- df[
 ]
 
 bandwidths <- c(1, 0.5, 0.25, 0.1, 0.05)
-
-df_bw1 <- df_table3 |>
-    filter(abs(iwm94) < 1)
 
 controls <- paste(
     c(
@@ -87,34 +85,8 @@ for (bw in bandwidths) {
 
             model_name <- paste(gender, bw, poly, sep = "_")
 
+            stopifnot(is.null(model$collin.var))
             table3_models[[model_name]] <- model
-        }
-    }
-}
-
-table3_results <- data.frame()
-
-for (gender in c("f", "m")) {
-    for (bw in bandwidths) {
-        for (poly in names(polynomials)) {
-
-            model_name <- paste(gender, bw, poly, sep = "_")
-            model <- table3_models[[model_name]]
-
-            results <- coeftable(model)
-
-            table3_results <- rbind(
-                table3_results,
-                data.frame(
-                    Gender = gender,
-                    Bandwidth = bw,
-                    Polynomial = poly,
-                    Coefficient = results["i94", 1],
-                    SE = results["i94", 2],
-                    P_value = results["i94", 4],
-                    Observations = nobs(model)
-                )
-            )
         }
     }
 }
@@ -233,13 +205,9 @@ ft <- align(
 ft <- add_footer_lines(
     ft,
     values = paste(
-        "Each cell reports the Islamic mayor coefficient",
-        "with province-clustered standard errors in parentheses.",
-        "All regressions include municipal controls and province",
-        "fixed effects. Polynomial terms are fitted separately",
-        "on either side of the electoral cutoff and rescaled",
-        "for numerical stability.",
-        "Bandwidths represent absolute election-margin cutoffs.",
+        "Standard errors are clustered by province and shown in parentheses.",
+        "RD estimates use the bandwidths printed in the paper.",
+        "Panel C uses a stacked gender-interaction test. The paper uses Stata's suest test.",
         "* p < 0.10, ** p < 0.05, *** p < 0.01."
     )
 )

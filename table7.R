@@ -23,42 +23,15 @@ controls <- c(
 
 province_vars <- grep("^pd_", names(df), value = TRUE)
 
-table7_vars <- c(
-    outcomes, "i94", "iwm94",
-    "vi1", "vi1_i", controls,
-    province_vars
-)
-
-df_table7 <- df[
-    complete.cases(df[, table7_vars]),
-]
-
-
-model_t7_1_unconditional <- feols(
-    ahischshr15_19f ~ i94,
-    data = df_table7,
-    cluster = ~pcode
-)
-
-model_t7_1_conditional <- feols(
-    ahischshr15_19f ~ i94 +
-        vshr_islam1994 + partycount +
-        shhs + lpop1994 + ageshr19 + ageshr60 +
-        sexr + merkezi + merkezp + subbuyuk + buyuk |
-        province_post,
-    data = df_table7,
-    cluster = ~pcode,
-    fixef.rm = "none"
-)
-
-
 table7_panelA <- list()
 
 for (outcome in outcomes) {
+    ols_vars <- c(outcome, "i94", controls, province_vars, "pcode")
+    ols_sample <- df[complete.cases(df[, ols_vars]), ]
 
     model_unconditional <- feols(
         as.formula(paste(outcome, "~ i94")),
-        data = df_table7,
+        data = ols_sample,
         cluster = ~pcode
     )
 
@@ -72,7 +45,7 @@ for (outcome in outcomes) {
 
     model_conditional <- feols(
         formula_conditional,
-        data = df_table7,
+        data = ols_sample,
         cluster = ~pcode,
         fixef.rm = "none"
     )
@@ -83,29 +56,6 @@ for (outcome in outcomes) {
     table7_panelA[[paste0(outcome, "_conditional")]] <-
         model_conditional
 }
-
-panelA_results <- data.frame()
-
-for (outcome in outcomes) {
-    for (spec in c("unconditional", "conditional")) {
-
-        model <- table7_panelA[[paste0(outcome, "_", spec)]]
-        result <- coeftable(model)
-
-        panelA_results <- rbind(
-            panelA_results,
-            data.frame(
-                Outcome = outcome,
-                Specification = spec,
-                Coefficient = result["i94", 1],
-                SE = result["i94", 2],
-                Observations = nobs(model)
-            )
-        )
-    }
-}
-
-
 
 optimal_bandwidths <- c(
     ahischshr15_19f = 0.239,
@@ -118,12 +68,13 @@ optimal_bandwidths <- c(
 
 table7_panelB <- list()
 
-panelB_results <- data.frame()
-
 for (outcome in outcomes) {
 
     h <- optimal_bandwidths[[outcome]]
 
+    rd_vars <- c(outcome, "i94", "iwm94", "vi1", "vi1_i",
+                 controls, province_vars, "pcode")
+    rd_sample <- df[complete.cases(df[, rd_vars]), ]
    
     bandwidth_options <- c(
         Optimal = h,
@@ -135,7 +86,7 @@ for (outcome in outcomes) {
 
         bw <- bandwidth_options[[spec]]
 
-        sample <- df_table7 |>
+        sample <- rd_sample |>
             filter(abs(iwm94) < bw)
 
         formula_rd <- as.formula(
@@ -155,30 +106,8 @@ for (outcome in outcomes) {
 
         model_name <- paste(outcome, spec, sep = "_")
         table7_panelB[[model_name]] <- model
-
-        result <- coeftable(model)
-
-        panelB_results <- rbind(
-            panelB_results,
-            data.frame(
-                Outcome = outcome,
-                Specification = spec,
-                Bandwidth = bw,
-                Coefficient = result["i94", 1],
-                SE = result["i94", 2],
-                P_value = result["i94", 4],
-                Observations = nobs(model)
-            )
-        )
     }
 }
-
-
-# --------------------------------------------------
-# TABLE VII: FORMAT AND EXPORT RESULTS
-# --------------------------------------------------
-
-# Significance levels used in Meyersson (2014)
 get_stars <- function(p) {
     if (p < 0.01) "***"
     else if (p < 0.05) "**"
@@ -186,7 +115,6 @@ get_stars <- function(p) {
     else ""
 }
 
-# Extract coefficient, standard error and significance
 format_result <- function(model) {
 
     result <- coeftable(model)
@@ -199,18 +127,18 @@ format_result <- function(model) {
             estimate, get_stars(p), se)
 }
 
-
-# Create Table VII
 table7_final <- data.frame(
-    Statistic = c(
+        Statistic = c(
         "Panel A: Global OLS",
         "Outcome mean",
         "Unconditional OLS",
         "Conditional OLS",
+        "Bandwidth",
         "R² (conditional)",
         "Observations",
         "",
         "Panel B: Local linear RD",
+        "Outcome mean",
         "Optimal bandwidth",
         "Islamic mayor (optimal)",
         "R² (optimal)",
@@ -227,8 +155,6 @@ table7_final <- data.frame(
     stringsAsFactors = FALSE
 )
 
-
-# Labels for the six outcome columns
 outcome_labels <- c(
     "Women HS 15-19",
     "Men HS 15-19",
@@ -238,13 +164,11 @@ outcome_labels <- c(
     "Men unmarried 15-19"
 )
 
-
-# Fill the table with results
 for (i in seq_along(outcomes)) {
 
     outcome <- outcomes[i]
 
-    # Panel A models
+  
     model_uncond <- table7_panelA[[
         paste0(outcome, "_unconditional")
     ]]
@@ -253,7 +177,7 @@ for (i in seq_along(outcomes)) {
         paste0(outcome, "_conditional")
     ]]
 
-    # Panel B models
+    
     model_opt <- table7_panelB[[
         paste(outcome, "Optimal", sep = "_")
     ]]
@@ -266,25 +190,21 @@ for (i in seq_along(outcomes)) {
         paste(outcome, "Double", sep = "_")
     ]]
 
-    # Bandwidths
     h <- optimal_bandwidths[[outcome]]
 
-    # Outcome mean in the full sample
-    outcome_mean <- mean(
-        df_table7[[outcome]],
-        na.rm = TRUE
-    )
+    outcome_mean <- mean(fitted(model_cond))
 
-    # Add the results to the corresponding column
     table7_final[[outcome_labels[i]]] <- c(
         "",
         sprintf("%.3f", outcome_mean),
         format_result(model_uncond),
         format_result(model_cond),
+        "1.00",
         sprintf("%.3f", as.numeric(fitstat(model_cond, "r2")$r2)),
         as.character(nobs(model_cond)),
         "",
         "",
+        sprintf("%.3f", mean(fitted(model_opt))),
         sprintf("%.3f", h),
         format_result(model_opt),
         sprintf("%.3f", as.numeric(fitstat(model_opt, "r2")$r2)),
@@ -300,11 +220,8 @@ for (i in seq_along(outcomes)) {
     )
 }
 
-
-# Create results folder
 dir.create("results", showWarnings = FALSE)
 
-# Export CSV
 write.csv(
     table7_final,
     "results/table7.csv",
@@ -326,7 +243,7 @@ ft <- fontsize(ft, size = 8, part = "all")
 
 ft <- bold(
     ft,
-    i = c(1, 8),
+    i = c(1, 9),
     bold = TRUE,
     part = "body"
 )
@@ -348,15 +265,9 @@ ft <- align(
 ft <- add_footer_lines(
     ft,
     values = paste(
-        "Panel A reports unconditional and conditional OLS results.",
-        "Panel B reports local linear RD estimates using the optimal,",
-        "half and double bandwidths.",
-        "All conditional regressions include municipal controls",
-        "and province fixed effects.",
-        "Standard errors are clustered by province.",
-        "Bandwidths use the rounded published values;",
-        "this may cause small differences in observation counts.",
-        "R² is the unadjusted R-squared.",
+        "Conditional models include municipal controls and province fixed effects.",
+        "Standard errors are clustered by province and shown in parentheses.",
+        "RD estimates use the rounded bandwidths reported in the paper and half and double those values.",
         "* p < 0.10, ** p < 0.05, *** p < 0.01."
     )
 )

@@ -1,5 +1,6 @@
 library(haven)
 library(dplyr)
+library(fixest)
 library(flextable)
 
 #Load the data
@@ -19,7 +20,6 @@ province_vars <- grep("^pd_", names(df), value = TRUE)
 
 df_table2 <- df[complete.cases(df[ , c(table2_vars,province_vars)]),]
 
-library(fixest)
 
 model_f1 <- feols(
     hischshr1520f ~ i94,
@@ -418,6 +418,9 @@ male_models <- list(
     model_m7, model_m8, model_m9
 )
 
+female_means <- sapply(female_models, function(model) mean(fitted(model)))
+male_means   <- sapply(male_models, function(model) mean(fitted(model)))
+
 female_results <- sapply(female_models, format_coefficient)
 male_results <- sapply(male_models, format_coefficient)
 
@@ -471,12 +474,14 @@ format_bandwidth <- function(x) {
 table2_final <- data.frame(
     Statistic = c(
         "Panel A: Women",
+        "Outcome mean",
         "Islamic mayor (SE)",
         "Bandwidth",
         "R²",
         "Observations",
         "",
         "Panel B: Men",
+        "Outcome mean",
         "Islamic mayor (SE)",
         "Bandwidth",
         "R²",
@@ -489,21 +494,22 @@ table2_final <- data.frame(
 )
 
 for (i in 1:9) {
-
     table2_final[[paste0("(", i, ")")]] <- c(
-        "",
+        "",                                  
+        sprintf("%.3f", female_means[i]),
         female_results[i],
         format_bandwidth(female_bandwidths[i]),
         sprintf("%.3f", female_r2[i]),
         as.character(female_n[i]),
-        "",
-        "",
+        "",                                  
+        "",                                  
+        sprintf("%.3f", male_means[i]),
         male_results[i],
         format_bandwidth(male_bandwidths[i]),
         sprintf("%.3f", male_r2[i]),
         as.character(male_n[i]),
-        "",
-        "",
+        "",                                  
+        "",                                  
         sprintf("%.3f", gender_p[i])
     )
 }
@@ -529,7 +535,7 @@ ft <- bold(ft, part = "header")
 
 ft <- fontsize(ft, size = 8, part = "all")
 
-panel_rows <- c(1, 7, 13)
+panel_rows <- c(1, 8, 15)
 
 ft <- bold(
     ft,
@@ -555,18 +561,10 @@ ft <- align(
 ft <- add_footer_lines(
     ft,
     values = paste(
-        "Panels A and B report the Islamic mayor coefficient",
-        "with province-clustered standard errors in parentheses.",
-        "Columns 1-2 use OLS; Columns 3-8 use RD specifications;",
-        "Column 9 examines school enrollment.",
-        "Panel C reports p-values from stacked gender-interaction",
-        "regressions, rather than the original Stata suest tests.",
-        "Bandwidths use the rounded values reported in the paper.",
-        "R² is the unadjusted R-squared.",
-        "Bandwidth is the absolute election-margin cutoff;",
-        "Bandwidths use the rounded values reported in the paper,",
-        "which can cause small differences in observation counts.",
-        "— indicates the full sample.",
+        "Columns 1–2 use OLS and columns 3–9 use RD. Column 9 measures school enrollment.",
+        "Standard errors are clustered by province and shown in parentheses.",
+        "RD bandwidths use the rounded values from the paper.",
+        "Panel C tests whether the effects differ by gender using a stacked regression. The paper uses Stata's suest test.",
         "* p < 0.10, ** p < 0.05, *** p < 0.01."
     )
 )
@@ -578,4 +576,3 @@ save_as_docx(
     path = "results/table2_formatted.docx"
 )
 
-source("table2.R")
