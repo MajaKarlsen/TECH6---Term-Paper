@@ -1,5 +1,4 @@
 library(haven)
-library(dplyr)
 library(flextable)
 
 #Load the data
@@ -15,11 +14,6 @@ table1_vars <- c(
 )
 
 df_table1 <- df[complete.cases(df[, table1_vars]), ]
-
-
-df_table1 <- df_table1 |>
-    mutate(I94 = 1 - i94)
-
 
 table1_labels <- c(
     hischshr1520f = "Share Women aged 15-20 with High School education",
@@ -59,7 +53,7 @@ for (variable in names(table1_labels)) {
         se <- 0
         stars <- ""
     } else {
-        test <- t.test(x ~ df_table1$I94, var.equal = TRUE)
+        test <- t.test(islamic, secular, var.equal = TRUE)
 
         se <- test$stderr
         p <- test$p.value
@@ -118,8 +112,9 @@ ft <- align(
 ft <- add_footer_lines(
     ft,
     values = paste(
-        "Columns 1-3 report means (SD). Column 4 reports",
-        "differences (SE).",
+        "Columns 1–3 show means with standard deviations in parentheses.",
+        "Column 4 shows the Islamic minus secular mean difference with its standard error in parentheses.",
+        "Stars follow the entries displayed in the published table:",
         "* p < 0.05, ** p < 0.01, *** p < 0.001."
     )
 )
