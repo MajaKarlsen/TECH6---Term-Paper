@@ -463,7 +463,7 @@ male_bandwidths <- c(
 
 format_bandwidth <- function(x) {
     if (is.na(x)) {
-        return("—")
+        return("1")
     }
     format(x, trim = TRUE, scientific = FALSE)
 }
@@ -577,3 +577,5 @@ save_as_docx(
     ft,
     path = "results/table2_formatted.docx"
 )
+
+source("table2.R")
