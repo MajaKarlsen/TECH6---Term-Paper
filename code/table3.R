@@ -1,12 +1,17 @@
+#TABLE 3: Alternative RD specifications
+
 library(tidyverse)
 library(haven)
 library(fixest)
 library(flextable)
 
-#Load data
+#Load the data
 df <- read_dta("regdata0.dta")
+nrow(df)                      #3204 municipalities in the data
+
 dir.create("results", showWarnings = FALSE)
 
+#Select variables for table 3
 table3_vars <- c(
     "hischshr1520f", "hischshr1520m",
     "i94", "iwm94",
@@ -15,15 +20,17 @@ table3_vars <- c(
     "ageshr60", "sexr", "merkezi",
     "merkezp", "subbuyuk", "buyuk"
 )
-
+#Find the province dummy variables (pd_1 to pd_81)
 province_vars <- grep("^pd_", names(df), value = TRUE)
 
-df_table3 <- df[
-    complete.cases(df[, c(table3_vars, province_vars)]),
-]
+#Keep municipalities with data for women, men and all controls
+df_table3 <- df[complete.cases(df[, c(table3_vars, province_vars)]), ]
+nrow(df_table3)   #2629 (the same sample as Tables I and II)
 
+#Bandwidths in the paper's Table III
 bandwidths <- c(1, 0.5, 0.25, 0.1, 0.05)
 
+#Controls used in every model
 controls <- c(
     "vshr_islam1994", "partycount", "shhs",
     "lpop1994", "ageshr19", "ageshr60",
@@ -31,6 +38,7 @@ controls <- c(
     "subbuyuk", "buyuk"
 )
 
+#Polynomial terms for each row
 polynomials <- c(
     "None" = "",
     "Linear" = "vi1 + vi1_i",
@@ -39,6 +47,7 @@ polynomials <- c(
     "Quartic" = "vi1 + vi1_i + vi2 + vi2_i + vi3 + vi3_i + vi4 + vi4_i"
 )
 
+#Create an empty list to store all models
 table3_models <- list()
 
 #Run the models for women (Panel A) and men (Panel B)
@@ -49,7 +58,7 @@ for (gender in c("f", "m")) {
 
     for (bw in bandwidths) {
 
-        #Keep muncipalities where the election margin is within the bandwidth
+        #Keep municipalities where the election margin is within the bandwidth
         sample <- df_table3 |>
             filter(abs(iwm94) < bw)
 
@@ -64,7 +73,6 @@ for (gender in c("f", "m")) {
         }
 
         for (poly in names(polynomials)) {
-
             terms <- c(
                 "i94",
                 polynomials[[poly]],
@@ -103,7 +111,7 @@ get_stars <- function(p) {
     else ""
 }
 
-#Each cell shows the i94 estimate with stars and its standrad error in parentheses
+#Returns the i94 estimate as "estimate*** (s.e.)
 format_result <- function(model) {
 
     result <- coeftable(model)
@@ -168,7 +176,7 @@ for (bw in bandwidths) {
     table3_final[[column_name]] <- column_values
 }
 
-#Formatting the table
+#Format the table
 ft <- flextable(table3_final)
 
 ft <- add_header_lines(
