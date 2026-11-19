@@ -4,6 +4,7 @@ library(fixest)
 library(patchwork)
 
 source("data/variables.R")
+source("code/helpers.R")
 
 fig4_panels <- imap(fig4_vars, \(label, y)
                     rd_panel(df, y, ylab = "Share with high school",
@@ -17,7 +18,7 @@ fig4 <- wrap_plots(fig4_panels, ncol = 2) +
       "1994 mayoral elections. Solid line: local linear smoother on raw data,",
       "each side of zero. Grey lines: 95% CI.")))
 fig4
-ggsave("figure4_outcomes.png", fig4, width = 7, height = 6, dpi = 300)
+ggsave("results/figure4_outcomes.png", fig4, width = 7, height = 6, dpi = 300)
 
 rd_jump <- function(y, h, with_controls = TRUE) {
   rhs <- "islamic + margin + margin:islamic"

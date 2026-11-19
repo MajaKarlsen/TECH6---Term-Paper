@@ -77,11 +77,11 @@ figure <- ggplot(plot_data, aes(margin, change_f)) +
   theme_classic(base_size = 10)
 
 figure
-ggsave("ext2_change.png", figure, width=6, height=6, dpi=300)  
+ggsave("results/ext2_change.png", figure, width=6, height=6, dpi=300)  
 
 bind_rows(
   main_result = main_result,
   checks = checks,
   selection = selection, .id = "block"
 ) |> mutate(across(c(estimate, se, p), \(x) round(x, 4))) |>
-  write_csv("ext2_results.csv")
+  write_csv("results/ext2_results.csv")

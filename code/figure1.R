@@ -32,3 +32,5 @@ fig1_plot <- ggplot(fig1, aes(x=vshr_islam1994, y=iwm94, colour=close)) +
   theme_classic() +                                                    #changing to white background and no grid
   theme(legend.position = "none")                                      #removing the legend
 fig1_plot
+
+ggsave("results/fig1.png", fig1_plot, width=6, height=4, dpi=300)

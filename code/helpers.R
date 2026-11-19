@@ -1,10 +1,3 @@
-library(tidyverse)
-library(haven)
-library(fixest)
-library(patchwork)
-
-source("data/variables.R")
-
 raw <- read_dta("regdata0.dta")
 
 controls <- c("vshr_islam1994", "partycount", "lpop1994", "ageshr19",
@@ -67,18 +60,5 @@ rd_panel <- function(data, y, ylab, width, h_smooth, window = 0.32,
 }
 
 h_smooth <- 0.15
-
-fig3_panels <- imap(fig3_vars, \(label, y)
-                    rd_panel(df, y, label, width = 0.08, h_smooth = h_smooth))
-
-fig3 <- wrap_plots(fig3_panels, ncol = 2) +
-  plot_annotation(
-    title   = "Figure 3: Balanced covariate checks",
-    caption = str_wrap(width = 110, paste(
-      "Dots: unconditional means in 8% bins of the Islamic win margin in the",
-      "1994 mayoral elections. Solid line: local linear smoother on raw data,",
-      "each side of zero. Grey lines: 95% CI.")))
-fig3
-ggsave("figure3_covariates.png", fig3, width = 7, height = 9.5, dpi = 300)
 
 

@@ -24,6 +24,9 @@ fig2a <- ggplot(fig2, aes(x=iwm94, y = after_stat(count/sum(count)*100))) +     
   theme_classic()
 
 fig2a
+ggsave("results/fig2.png", fig2a, height=4, width=6, dpi=300)
+
+png("results/fig2b.png", width = 6, height = 4, units = "in", res = 300)
 
 #Figure 2 (b): shows the McCrary (2008) test of whether there is a discontinuity in the density of the Islamic win margin
 fig2b <- DCdensity(fig2$iwm94, cutpoint = 0, ext.out = TRUE)    #DCdensity draws a base R-plot (only using running variable)
@@ -43,3 +46,5 @@ fig2b$binsize #width of small bins
 
 mtext(paste0('Discontinuity est. = ', round(fig2b$theta, 3),', s.e. = ', round(fig2b$se, 3)),
       side = 1, line = 3, adj = 0, cex = 0.6) #discontinuity small note to the left under the plot (rounded to 3 decimal)
+
+dev.off()
