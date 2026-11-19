@@ -64,3 +64,4 @@ install.packages("https://cran.r-project.org/src/contrib/Archive/rdd/rdd_0.57.ta
 - **Data:** `regdata0.dta`, the replication dataset shared on Canvas
 - **Paper:** Meyersson, E. (2014), _Econometrica_ 82(1), 229–269. https://doi.org/10.3982/ECTA9878
 - **Supplemental Material:** https://www.econometricsociety.org/publications/econometrica/2014/01/01/islamic-rule-and-empowerment-poor-and-pious/supp/9878_miscellaneous_0.pdf
+- **Density test (Figure 2b):** McCrary, J. (2008), _Journal of Econometrics_ 142(2), 698–714. https://doi.org/10.1016/j.jeconom.2007.05.005
