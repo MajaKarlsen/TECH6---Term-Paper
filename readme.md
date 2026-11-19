@@ -25,15 +25,15 @@ This regenerates every table and figure from `regdata0.dta` and saves them in `r
 
 ## Outputs
 
-| Script | Output in `results/` |
-|---|---|
-| `table1.R`, `table2.R`, `table3.R`, `table7.R` | `tableX.csv`, `tableX_formatted.docx` |
-| `figure1.R` | `fig1.png` |
-| `figure2.R` | `fig2a.png`, `fig2b.png` |
-| `figure3.R` | `figure3_covariates.png` |
-| `figure4.R` | `figure4_outcomes.png` |
-| `ext_1.R` | `ext1.csv`, `ext1_formatted.docx` (Table E.1) |
-| `ext_2.R` | `ext2_results.csv`, `ext2_change.png` (Table E.2, Figure E.1) |
+| Script                                         | Output in `results/`                                          |
+| ---------------------------------------------- | ------------------------------------------------------------- |
+| `table1.R`, `table2.R`, `table3.R`, `table7.R` | `tableX.csv`, `tableX_formatted.docx`                         |
+| `figure1.R`                                    | `fig1.png`                                                    |
+| `figure2.R`                                    | `fig2a.png`, `fig2b.png`                                      |
+| `figure3.R`                                    | `figure3_covariates.png`                                      |
+| `figure4.R`                                    | `figure4_outcomes.png`                                        |
+| `ext_1.R`                                      | `ext1.csv`, `ext1_formatted.docx` (Table E.1)                 |
+| `ext_2.R`                                      | `ext2_results.csv`, `ext2_change.png` (Table E.2, Figure E.2) |
 
 ## Package dependencies
 
