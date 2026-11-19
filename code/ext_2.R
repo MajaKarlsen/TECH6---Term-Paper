@@ -28,7 +28,7 @@ df90 <- filter(df, has90 == 1)
 rd <- function(y, h, data, with_controls = TRUE) {
   rhs <- "islamic + margin + margin:islamic"
   if (with_controls) rhs <- paste(rhs, "+", paste(controls, collapse = " + "))
-  fit <- feols(as.formula(paste(y, "~", rhs, "| pcode")),
+  fit <- feols(as.formula(paste(y, "~", rhs, "| province_post")),
                data = filter(data, abs(margin) < h),
                cluster = ~pcode, fixef.rm = "none", notes = FALSE)
   tibble(outcome = y, h = h, controls = with_controls,

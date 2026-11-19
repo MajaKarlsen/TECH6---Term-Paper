@@ -20,4 +20,4 @@ fig4_vars <- c(
 
 #For ext2
 controls <- c("vshr_islam1994", "partycount", "lpop1994",
-              "ageshr19", "ageshr60", "sexr", "merkezi", "merkezp", "subbuyuk", "buyuk")
+              "ageshr19", "ageshr60", "sexr", "merkezi", "merkezp", "subbuyuk", "buyuk", "shhs")
