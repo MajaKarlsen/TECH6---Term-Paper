@@ -1,4 +1,6 @@
-dir.create("results", showWarnings=FALSE)
+#RUN ALL: regenerates every table and figure in results/ from regdata0.dta
+
+dir.create("results", showWarnings = FALSE)
 
 scripts <- c(
   "code/table1.R",
@@ -9,13 +11,13 @@ scripts <- c(
   "code/figure2.R",
   "code/figure3.R",
   "code/figure4.R",
-  "code/ext_2.R",
-  "code/extension_jobs.R"
+  "code/ext_1.R",
+  "code/ext_2.R"
 )
 
-for(s in scripts) {
+for (s in scripts) {
   message("Running script: ", s)
   source(s, local = new.env())
 }
 
-message("All scripts executed successfully. Please see ./output")
+message("All scripts executed successfully. Please see results/")

@@ -1,21 +1,23 @@
+#HELPERS: shared data and functions for Figures 3 and 4
+
 raw <- read_dta("regdata0.dta")
 
-# Controls from table 2
+#Controls from Table 2 (without household size)
 controls <- c("vshr_islam1994", "partycount", "lpop1994", "ageshr19",
               "ageshr60", "sexr", "merkezi", "merkezp", "subbuyuk", "buyuk")
 
-# Estimation sample
+#Estimation sample
 df <- raw |>
   filter(!is.na(iwm94), !is.na(hischshr1520f), !is.na(hischshr1520m)) |>
   drop_na(all_of(controls)) |>
   mutate(margin  = iwm94,
          islamic = as.numeric(margin > 0))
 
-# Sample size and # of Islamic Mayors
-nrow(df) 
-sum(df$islamic)
+#Sample size and number of Islamic mayors
+nrow(df)          #2629
+sum(df$islamic)   #315
 
-# Mean of y in bins of win margin
+#Mean of y in bins of the win margin
 bin_means <- function(data, y, width) {
   data |>
     filter(!is.na(.data[[y]])) |>
@@ -24,17 +26,17 @@ bin_means <- function(data, y, width) {
     summarise(mean = mean(.data[[y]]), n = n(), .groups = "drop")
 }
 
-# Local linear smoother on each side of the cutoff, with 95% CI
+#Local linear smoother on each side of the cutoff, with 95% CI
 local_linear <- function(data, y, h_smooth, n_grid = 60) {
   one_side <- function(side_data) {
     grid <- seq(min(side_data$margin), max(side_data$margin), length.out = n_grid)
     map_dfr(grid, function(x0) {
       d <- side_data |>
-        mutate(xc = margin - x0,                 
+        mutate(xc = margin - x0,
                u  = xc / h_smooth,
-               w  = 0.75 * (1 - u^2)) |>        
+               w  = 0.75 * (1 - u^2)) |>
         filter(abs(u) < 1)
-      if (nrow(d) < 10) return(NULL)           
+      if (nrow(d) < 10) return(NULL)
       m <- feols(as.formula(paste(y, "~ xc")), data = d,
                  weights = ~w, vcov = "hetero", notes = FALSE)
       b <- coef(m)[["(Intercept)"]]
@@ -47,7 +49,7 @@ local_linear <- function(data, y, h_smooth, n_grid = 60) {
             one_side(filter(data, margin >= 0)) |> mutate(side = "right"))
 }
 
-# RD panel -- binned means, smoother CI lines and cutoff
+#RD panel: binned means, smoother with CI lines and cutoff
 rd_panel <- function(data, y, ylab, width, h_smooth, window = 0.32,
                      title = NULL) {
   data <- filter(data, abs(margin) < window)
@@ -67,7 +69,5 @@ rd_panel <- function(data, y, ylab, width, h_smooth, window = 0.32,
     theme(plot.title = element_text(size = 10, hjust = 0.5))
 }
 
-# Bandwidth for the smoother
+#Bandwidth for the smoother
 h_smooth <- 0.15
-
-

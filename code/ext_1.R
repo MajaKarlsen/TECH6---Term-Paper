@@ -1,14 +1,19 @@
-#Extension: Did more schooling result in more jobs ?
+#EXTENSION 1: Did more schooling result in more jobs?
 #Same specification as in table2.R
+
 library(tidyverse)
 library(haven)
-library(fixest)     #feols = fast regression with fixed effects + clustering
+library(fixest)
 library(flextable)
 
-#Loading the data
+#Load the data
 df <- read_dta("regdata0.dta")
+nrow(df)   #3204 municipalities in the data
 
-#Using same controls as table2.R
+#Create the results folder if it does not exist
+dir.create("results", showWarnings = FALSE)
+
+#Use the same controls as table2.R
 controls <- c(
   "vshr_islam1994", "partycount",
   "shhs", "lpop1994", "ageshr19",
@@ -16,36 +21,35 @@ controls <- c(
   "merkezp", "subbuyuk", "buyuk"
 )
 
-#Checking new outcomes (0-1 shares?, how many are missing?)
+#Check the new outcomes (0-1 shares?, how many are missing?)
 summary(df$nonagshr1530f)
 summary(df$hwfshr1530f)
 summary(df$c90empf)       #not used: mostly zeros, 1332 missing
 
-#Using bandwidth of 0.240 so the result is comparable with the main education estimate
+#Use a bandwidth of 0.240 so the result is comparable with the main education estimate
 h <- 0.240
 
 rd_sample <- df |>
-  filter(abs(iwm94) < h)  #keeping only municipalities close to the cutoff (partly won or lost by less than 24 p.p)
+  filter(abs(iwm94) < h)  #Keep only municipalities narrowly won or lost by less than 24 p.p.
+
+nrow(rd_sample)   #1046 municipalities within the bandwidth
 
 #First RDD: did Islamic rule change women's non-agricultural work?
 #nonagshr1530f - share of women 15-30 working outside of agriculture
 m_nonag_f <- feols(
   nonagshr1530f ~ i94 + vi1 + vi1_i +                          #i94 = RD effect; vi1, vi1_i = margin slope on each side
     vshr_islam1994 + partycount + shhs + lpop1994 + ageshr19 +
-    ageshr60 + sexr + merkezi + merkezp + subbuyuk + buyuk |   #controls
-    province_post,                                             #province fixed effects
+    ageshr60 + sexr + merkezi + merkezp + subbuyuk + buyuk |
+    province_post,
   data = rd_sample,
-  cluster = ~pcode,                                            #s.e. clustered by province
-  fixef.rm = "none"                                            #keeping provinces with one municipality
+  cluster = ~pcode,
+  fixef.rm = "none"                                            #keep provinces with one municipality, as in table2.R
 )
 
 summary(m_nonag_f)
 
-#Result: i94 = 0.0025 (se 0.0037, p = 0.49), N = 1023
-#=> no significant effect on women's non-agricultural employment in 2000
-
-#Second RDD: did Islamic rule change men's non-agriculture work?
-#Doing the same RDD but for men - same sample and bandwidth
+#Second RDD: did Islamic rule change men's non-agricultural work?
+#Same RDD for men, same sample and bandwidth
 m_nonag_m <- feols(
   nonagshr1530m ~ i94 + vi1 + vi1_i +                         #outcome: men 15-30 working outside agriculture
     vshr_islam1994 + partycount + shhs + lpop1994 + ageshr19 +
@@ -56,7 +60,7 @@ m_nonag_m <- feols(
   fixef.rm = "none"
 )
 
-#Displaying women and men side by side
+#Show women and men side by side
 etable(m_nonag_f, m_nonag_m, keep = "i94")
 
 #Means of the outcomes in the RD sample (to judge the size of the effects)
@@ -70,17 +74,18 @@ mean(rd_sample$nonagshr1530m, na.rm = TRUE)
 
 #Robustness check: testing if the results hold at bandwidth 0.12 (half), 0.24 (main) and 0.48 (double)
 
-#Using a function so the same specification is used for every outcome and bandwidth
-run_rd <- function (outcome, h) {
-  #Building formula as text: outcome ~ i94 + vi1 + vi1_i + controls| province FE
-  formula_text <- paste(outcome, "~ i94 + vi1 + vi1_i +",                
-                        paste(controls, collapse="+"), "| province_post") 
+#Use a function so the same specification is used for every outcome and bandwidth
+run_rd <- function(outcome, h) {
+  #Build the formula as text: outcome ~ i94 + vi1 + vi1_i + controls| province FE
+  formula_text <- paste(outcome, "~ i94 + vi1 + vi1_i +",
+                        paste(controls, collapse = " + "), "| province_post")
   feols(
     as.formula(formula_text),
-    data = df|> filter (abs(iwm94) < h),
-    cluster = ~pcode, 
+    data = df |> filter(abs(iwm94) < h),
+    cluster = ~pcode,
     fixef.rm = "none")
 }
+
 #Women: half, main and double bandwidth
 etable(run_rd("nonagshr1530f", 0.12),
        run_rd("nonagshr1530f", 0.24),
@@ -94,39 +99,38 @@ etable(run_rd("nonagshr1530m", 0.12),
        keep = "i94")
 
 #Result: women ~0 at all bandwidths (robust null).
-#Men: negative at all bandwidths (-0.013, -0.024*, -0.020*), but not significant at half the bandwidth 
+#Men: negative at all bandwidths (-0.013, -0.024**, -0.020**), but not significant at half the bandwidth
 
-#Checking where did the change for women happen?
-#Three activities of women aged 15-30 in 2000, same specification and sample.
-#Table II (col. 9) and Table S.IV report these separately, at one bandwidth each
-#Here we compare them side by side at half, main and double bandwidth
+#Check where the change for women happened: students, housewives and employed (ages 15-30)
+#Table II (col. 9) and Table S.IV report these separately at one bandwidth; here we compare them
 
-# Students
+#Students
 etable(run_rd("studshr1530f", 0.12),
        run_rd("studshr1530f", 0.24),
        run_rd("studshr1530f", 0.48),
        keep = "i94")
 
-# Housewives
+#Housewives
 etable(run_rd("hwfshr1530f", 0.12),
        run_rd("hwfshr1530f", 0.24),
        run_rd("hwfshr1530f", 0.48),
        keep = "i94")
 
 #Result: student = robust increase, housewife = not robust (only significant at 0.24 bw), employed = robust zero
-# => women moved into school, but not (yet) into work
+#=> women moved into school, but not (yet) into work
 
-#Building a one result table
-bandwidths <- c(0.12, 0.24, 0.48)   # half, main and double bandwidth
+#Build one results table
+bandwidths <- c(0.12, 0.24, 0.48)   #half, main and double bandwidth
 
-get_stars <- function(p) { 
+#Stars follow the paper's footnote (* 10%, ** 5%, *** 1%)
+get_stars <- function(p) {
   if (p < 0.01) "***"
   else if (p < 0.05) "**"
   else if (p < 0.10) "*"
   else ""
 }
 
-#Formatting the i94 result as "estimate*** (s.e.)"
+#Format the i94 result as "estimate*** (s.e.)"
 format_result <- function(model) {
   result <- coeftable(model)
   sprintf("%.3f%s (%.3f)",
@@ -141,6 +145,7 @@ panel_rows <- function(model, h) {
     sprintf("%.3f", r2(model, "r2")),
     as.character(nobs(model)))
 }
+
 #The five outcomes in the table: panel title = variable name
 outcomes <- c(
   "Panel A: Women, students"                    = "studshr1530f",
@@ -162,35 +167,33 @@ ext_final <- data.frame(
 #One column per bandwidth: (1) half, (2) main, (3) double
 for (i in 1:3) {
   ext_final[[paste0("(", i, ")")]] <- unlist(lapply(outcomes, function(y) {
-    model <- run_rd(y, bandwidths[i])                   # estimate the RDD
-    c("", panel_rows(model, bandwidths[i]), "")         # title row empty, 5 results, empty row
+    model <- run_rd(y, bandwidths[i])
+    c("", panel_rows(model, bandwidths[i]), "")         #title row empty, 5 results, empty row
   }))
 }
 
 ext_final   #check in the Console: 35 rows, 4 columns
 
-#Formatting 
+#Format the table for Word
 ft <- flextable(ext_final)
 ft <- add_header_lines(ft,
-                       values = "EXTENSION - ISLAMIC MAYORS AND THE ACTIVITIES OF WOMEN AND MEN AGED 15-30, 2000")
+                       values = "TABLE E.1 — ISLAMIC MAYORS AND THE ACTIVITIES OF WOMEN AND MEN AGED 15-30, 2000")
 ft <- theme_booktabs(ft)
 ft <- bold(ft, part = "header")
 ft <- fontsize(ft, size = 8, part = "all")
-ft <- bold(ft, i = c(1, 8, 15, 22, 29), bold = TRUE, part = "body")   # panel titles in bold
+ft <- bold(ft, i = c(1, 8, 15, 22, 29), bold = TRUE, part = "body")
 ft <- align(ft, j = 2:4, align = "center", part = "all")
 ft <- align(ft, j = 1, align = "left", part = "all")
 ft <- add_footer_lines(ft, values = c(
-  "Columns (1)-(3): half, main and double bandwidth (0.12, 0.24, 0.48)",
-  "Local linear RD with the controls of Table II and province fixed effects",
-  "Standard errors clustered by province in parentheses",
+  "Columns (1)-(3): half, main and double bandwidth (0.12, 0.24, 0.48).",
+  "Local linear RD with the controls of Table II and province fixed effects.",
+  "Standard errors clustered by province in parentheses.",
   "* p < 0.10, ** p < 0.05, *** p < 0.01."))
 ft <- fontsize(ft, size = 8, part = "footer")
-ft <- padding(ft, padding.top = 1, padding.bottom = 1, part = "all")  # less space above/below each row
-ft <- line_spacing(ft, space = 1, part = "all")                       # single line spacing
+ft <- padding(ft, padding.top = 1, padding.bottom = 1, part = "all")
+ft <- line_spacing(ft, space = 1, part = "all")
 ft <- autofit(ft)
 
-
-#Exporting the results
-dir.create("results", showWarnings = FALSE)
-save_as_docx(ft, path = "results/extension_jobs_formatted.docx")
-write.csv(ext_final, "results/extension_jobs.csv", row.names = FALSE)
+#Export the results
+save_as_docx(ft, path = "results/ext1_formatted.docx")
+write.csv(ext_final, "results/ext1.csv", row.names = FALSE)
