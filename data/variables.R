@@ -16,3 +16,7 @@ fig4_vars <- c(
   c90hischshr1520m = "(d) Men 15-20 with high school, 1990"
 )
 
+# For ext2
+controls <- c("vshr_islam1994", "partycount", "lpop1994", 
+              "ageshr19", "ageshr60", "sexr", "merkezi", "merkezp", "subbuyuk", "buyuk")
+

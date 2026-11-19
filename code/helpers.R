@@ -1,16 +1,21 @@
 raw <- read_dta("regdata0.dta")
 
+# Controls from table 2
 controls <- c("vshr_islam1994", "partycount", "lpop1994", "ageshr19",
               "ageshr60", "sexr", "merkezi", "merkezp", "subbuyuk", "buyuk")
 
+# Estimation sample
 df <- raw |>
   filter(!is.na(iwm94), !is.na(hischshr1520f), !is.na(hischshr1520m)) |>
   drop_na(all_of(controls)) |>
   mutate(margin  = iwm94,
          islamic = as.numeric(margin > 0))
 
+# Sample size and # of Islamic Mayors
 nrow(df) 
 sum(df$islamic)
+
+# Mean of y in bins of win margin
 bin_means <- function(data, y, width) {
   data |>
     filter(!is.na(.data[[y]])) |>
@@ -18,6 +23,8 @@ bin_means <- function(data, y, width) {
     group_by(bin) |>
     summarise(mean = mean(.data[[y]]), n = n(), .groups = "drop")
 }
+
+# Local linear smoother on each side of the cutoff, with 95% CI
 local_linear <- function(data, y, h_smooth, n_grid = 60) {
   one_side <- function(side_data) {
     grid <- seq(min(side_data$margin), max(side_data$margin), length.out = n_grid)
@@ -40,6 +47,7 @@ local_linear <- function(data, y, h_smooth, n_grid = 60) {
             one_side(filter(data, margin >= 0)) |> mutate(side = "right"))
 }
 
+# RD panel -- binned means, smoother CI lines and cutoff
 rd_panel <- function(data, y, ylab, width, h_smooth, window = 0.32,
                      title = NULL) {
   data <- filter(data, abs(margin) < window)
@@ -59,6 +67,7 @@ rd_panel <- function(data, y, ylab, width, h_smooth, window = 0.32,
     theme(plot.title = element_text(size = 10, hjust = 0.5))
 }
 
+# Bandwidth for the smoother
 h_smooth <- 0.15
 
 
